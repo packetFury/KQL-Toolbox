@@ -1,0 +1,13 @@
+let trusted_network_locations = dynamic(["IPGOESHERE/CIDR");
+let AadUID = (SecurityAlert
+| where AlertName contains "Unfamiliar"
+| project parse_json(Entities[0].AadUserId);
+let UPN = (IdentityInfo
+| where AccountObjectId in (AadUID)
+| project AccountUPN);
+OfficeActivity
+| where UserId in (UPN)
+| where ClientIP !in (trusted_network_locations)
+| where Operation contains "rule"
+| where parse_json(Parameters) contains "AlwaysDeleteOutlookRulesBlob"
+| distinct TimeGenerated, UserId, Operation
