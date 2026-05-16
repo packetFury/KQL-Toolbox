@@ -1,3 +1,4 @@
+// Detect network traffic at the infrastructure layer using CommonSecurity Log
 let MaliciousIPs = (ThreatIntelIndicators
 | where TimeGenerated > ago(14d)
 | where ObservableValue matches regex @"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
@@ -6,3 +7,33 @@ CommonSecurityLog
 | where TimeGenerated > ago(1d)
 | join kind=inner MaliciousIPs on $left.DestinationIP == $right.ObservableValue
 | project TimeGenerated, SourceIP, DestinationIP, DeviceAction, Description
+
+// Detect Azure activity from malicious IPs 
+let MaliciousIPs = (ThreatIntelIndicators
+| where TimeGenerated > ago(14d)
+| where ObservableValue matches regex @"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+| project ObservableValue, Description = Data.description, ConfidenceScore = Data.confidence);
+union isfuzzy = true 
+(
+    SigninLogs
+    | where TimeGenerated > ago(1d)
+    | where isnotempty(IPAddress)
+    | extend SourceIP = IPAddress, LogSource = "Entra ID Sign-in"
+    | project TimeGenerated, LogSource, SourceIP, Account = UserPrincipalName, TargetResource = AppDisplayName, Result = ResultDescription
+),
+(
+    OfficeActivity
+    | where TimeGenerated > ago(1d)
+    | where isnotempty(ClientIP)
+    | extend SourceIP = ClientIP, LogSource = "Office 365"
+    | project TimeGenerated, LogSource, SourceIP, Account = UserId, TargetResource = OfficeWorkload, Result = Operation
+),
+(
+    AzureActivity
+    | where TimeGenerated > ago(1d)
+    | where isnotempty(CallerIpAddress)
+    | extend SourceIP = CallerIpAddress, LogSource = "Azure Resource Manager"
+    | project TimeGenerated, LogSource, SourceIP, Account = Caller, TargetResource = ResourceProviderValue, Result = OperationName
+)
+| where SourceIP in (MaliciousIPs)
+| project TimeGenerated, LogSource, SourceIP, Account, TargetResource, Result
