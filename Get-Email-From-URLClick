@@ -1,0 +1,8 @@
+let messageID = (
+  EmailUrlInfo
+  | where Url contains "<CHANGE ME>"
+  | project NetworkMessageId);
+UrlClickEvents
+| join kind=innerunique EmailEvents on NetworkMessageId
+| where NetworkMessageId in (messageId)
+| project TimeGenerated, AccountUpn, Url, SenderFromAddress, Subject
