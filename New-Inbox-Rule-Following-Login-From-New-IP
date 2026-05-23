@@ -1,9 +1,9 @@
 // Define filters to exclude normal activity occurring on corporate networks.
-let trusted_network_locations = dynamic(["IPGOESHERE/CIDR");
+let trusted_network_locations = dynamic(["IPGOESHERE/CIDR"]);
 // Establish our baseline of sign-in activity.
 let signin_baseline = 
   SigninLogs
-  | where TimeGenerated > ago(30d)
+  | where TimeGenerated between (ago(30d) .. ago(1d))
   | where Status.errorCode == 0
   | where isnotempty(IPAddress)
   | summarize by UserPrincipalName, HistoricalIP = IPAddress;
