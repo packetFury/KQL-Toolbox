@@ -1,6 +1,7 @@
 // =========================================================================================
 // DETECTION NAME: New Inbox Rule Following Anomalous Sign-in
-// MITRE ATT&CK:   T1114.003 (Email Forwarding Rule), T1562.001 (Impair Defenses)
+// MITRE ATT&CK:   T1564.008  (Hide Artifacts: Email Hiding Rules), T1562.001 (Impair 
+//                 Defenses)
 // DESCRIPTION:    Detects threat actors establishing persistence or obfuscating activity by 
 //                 creating/modifying Outlook inbox rules within 12 hours of a successful 
 //                 sign-in from an unfamiliar IP address outside corporate ranges.
