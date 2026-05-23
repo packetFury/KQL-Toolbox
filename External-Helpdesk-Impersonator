@@ -1,0 +1,8 @@
+# Detect when external contacts are impersonating helpdesk or support staff to your users over Teams. TTP of Black Basta, Scattered Spider, and multiple other TA groups
+
+# Modify this list to include key words specific to your organization or environment. Be sure to include any third-party MSPs.
+let dn = dynamic(["IT Support", "IT Manager", "Help Desk", "helpdesk", "helpdesk support", "help desk support", "support", "it support"]);
+CloudAppEvents
+| where IsExternalUser == true
+| where parse_json(tostring(RawEventData.Members))[0].UPN has_any (dn) or parse_json(tostring(RawEventData.Members))[1].UPN has_any (dn)
+| project TimeGenerated, Member1 = parse_json(tostring(RawEventData.Members))[0].UPN, Member2 = parse_json(tostring(RawEventData.Members))[1].UPN
