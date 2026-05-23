@@ -11,4 +11,5 @@ This query is for edge cases where you have already discovered the payload URL, 
 This analytic rule explicitly leverages ThreatIntelligence to provide additional visibility on top of Sentinel's out-of-the-box alerts for IoCs in ThreatIntelligence. Useful for custom threat intelligence feeds that have been integrated into Sentinel to tailor specific alerts for IoCs relevant to your space.
 
 ## New-Inbox-Rule-Following-Login-From-New-IP
+(MITRE ATT&CK T1562.001, T1114.003)
 This rule addresses a very common TTP for Business Email Compromise, where a threat actor will gain access to a user's account and immediately set up an Inbox Rule to obfuscate their activity. This usually takes the form of hiding incoming emails from the originally compromised external user or based on keywords like "hacked", "spam", "Do not open", etc. This enables the SOC team to detect and immediately remediate the compromised account prior to actions on objective.
