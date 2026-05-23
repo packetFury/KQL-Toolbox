@@ -1,13 +1,31 @@
+// Define filters to exclude normal activity occurring on corporate networks.
 let trusted_network_locations = dynamic(["IPGOESHERE/CIDR");
-let AadUID = (SecurityAlert
-| where AlertName contains "Unfamiliar"
-| project parse_json(Entities[0].AadUserId);
-let UPN = (IdentityInfo
-| where AccountObjectId in (AadUID)
-| project AccountUPN);
-OfficeActivity
-| where UserId in (UPN)
-| where ClientIP !in (trusted_network_locations)
-| where Operation contains "rule"
-| where parse_json(Parameters) contains "AlwaysDeleteOutlookRulesBlob"
-| distinct TimeGenerated, UserId, Operation
+// Establish our baseline of sign-in activity.
+let signin_baseline = 
+  SigninLogs
+  | where TimeGenerated > ago(30d)
+  | where Status.errorCode == 0
+  | where isnotempty(IPAddress)
+  | summarize by UserPrincipalName, HistoricalIP = IPAddress;
+// Find the anomalies in SigninLogs
+let UnfamiliarSignins = 
+  SigninLogs
+  | where TimeGenerated > ago(1d)
+  | where Status.errorCode == 0
+  | where not(mv_apply prefix = trusted_network_locations to (where ipv4_is_match(IPAddress, prefix)) )
+  | join kind=leftanti signin_baseline on UserPrincipalName, $left.IPAddress == $right.HistoricalIP
+  | extend City = tostring(LocationDetails.city), Country = tostring(LocationDetails.countryOrRegion)
+  | project NewSigninTime = TimeGenerated, UserPrincipalName, UnfamiliarIP = IPAddress, City, Country, AppDisplayName;
+// Find Inbox Rule activity
+let NewInboxRule = 
+  OfficeActivity
+  | where TimeGenerated > ago(1d)
+  | where Operation in~ ("New-InboxRule", "Set-InboxRule")
+  | extend RuleName = tostring(parse_json(Parameters)[0].Value)
+  | project RuleCreationTime = TimeGenerated, UserPrincipalName = UserId, Operation, RuleName, ClientIPAddress, OfficeWorkload;
+// Correlate it all together
+UnfamiliarSignins
+| join kind=inner NewInboxRule on UserPrincipalName
+| extend TimeDifference = RuleCreationTime - NewSigninTime
+| where TimeDifference between (0m .. 12h)
+| project NewSigninTime, RuleCreationTime, TimeDifference, UserPrincipalName, UnfamiliarIP, City, Country, AppDisplayName, Operation, RuleName
