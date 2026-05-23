@@ -1,9 +1,27 @@
+// =========================================================================================
+// DETECTION NAME: New Inbox Rule Following Anomalous Sign-in
+// MITRE ATT&CK:   T1114.003 (Email Forwarding Rule), T1562.001 (Impair Defenses)
+// DESCRIPTION:    Detects threat actors establishing persistence or obfuscating activity by 
+//                 creating/modifying Outlook inbox rules within 12 hours of a successful 
+//                 sign-in from an unfamiliar IP address outside corporate ranges.
+//
+// ADDRESSES:      Sentinel / Defender XDR out-of-box alerts for detecting anomalous 
+//                 sign-in events are good, but not perfect. They are frequently preempted
+//                 by ML determining the anomalous activity to be benign before an alert is
+//                 ever fired. This compensates for that by building out custom detection
+//                 and baselining logic to catch anomalous sign-ins followed by new inbox 
+//                 rules being created that could indicate obfuscation tactics. This alert
+//                 is designed to keep tables and resource consumption lean by filtering 
+//                 out known corporate IP spaces, and reduce noise by establishing normal
+//                 activity baselines.
+// =========================================================================================
+
 // Define filters to exclude normal activity occurring on corporate networks.
 let trusted_network_locations = dynamic(["IPGOESHERE/CIDR"]);
 // Establish our baseline of sign-in activity.
 let signin_baseline = 
   SigninLogs
-  | where TimeGenerated between (ago(30d) .. ago(1d))
+  | where TimeGenerated between (ago(30d) .. ago(1d)) // Fix: Exclude today's sign-in logs to prevent new IPs from being added to baseline. This would have broken the entire query.
   | where Status.errorCode == 0
   | where isnotempty(IPAddress)
   | summarize by UserPrincipalName, HistoricalIP = IPAddress;
@@ -12,6 +30,7 @@ let UnfamiliarSignins =
   SigninLogs
   | where TimeGenerated > ago(1d)
   | where Status.errorCode == 0
+  // Exclude corporate IP spaces from baseline to keep the table lean and reduce alert noise.
   | where not(mv_apply prefix = trusted_network_locations to (where ipv4_is_match(IPAddress, prefix)) )
   | join kind=leftanti signin_baseline on UserPrincipalName, $left.IPAddress == $right.HistoricalIP
   | extend City = tostring(LocationDetails.city), Country = tostring(LocationDetails.countryOrRegion)
