@@ -1,17 +1,31 @@
-// Detect network traffic at the infrastructure layer using CommonSecurity Log
+// =========================================================================================
+// DETECTION NAME: Detect ThreatIntelligence IPs in Infrastructure Logs
+// MITRE ATT&CK:   T1190 (Exploit Public-Facing Application), T1078 (Valid Accounts)
+// DESCRIPTION:    Detects and returns activity from IP IOCs from the Sentinel
+//                 ThreatIntelligence table. This allows your analysts to immediately
+                   identify connection traffic from suspicious IPs with poor reputations.
+// =========================================================================================
+
 let MaliciousIPs = (ThreatIntelIndicators
 | where TimeGenerated > ago(14d)
-| where ObservableValue matches regex @"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+| where isnotnull(parse_ipv4(ObservableValue)) or isnotnull(parse_ipv6(ObservableValue))
 | project ObservableValue, Description = Data.description, ConfidenceScore = Data.confidence);
 CommonSecurityLog
 | where TimeGenerated > ago(1d)
 | join kind=inner MaliciousIPs on $left.DestinationIP == $right.ObservableValue
 | project TimeGenerated, SourceIP, DestinationIP, DeviceAction, Description
 
-// Detect Azure activity from malicious IPs 
+// =========================================================================================
+// DETECTION NAME: Detect ThreatIntelligence IPs in Azure Logs
+// MITRE ATT&CK:   T1190 (Exploit Public-Facing Application), T1078 (Valid Accounts)
+// DESCRIPTION:    Detects and returns activity from IP IOCs from the Sentinel
+//                 ThreatIntelligence table. This allows your analysts to immediately
+                   identify Azure activity events from suspicious IPs with poor reputations.
+// =========================================================================================
+
 let MaliciousIPs = (ThreatIntelIndicators
 | where TimeGenerated > ago(14d)
-| where ObservableValue matches regex @"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+| where isnotnull(parse_ipv4(ObservableValue)) or isnotnull(parse_ipv6(ObservableValue))
 | project ObservableValue, Description = Data.description, ConfidenceScore = Data.confidence);
 union isfuzzy = true 
 (
